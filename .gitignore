@@ -1,0 +1,13 @@
+# data/prediction files
+*.mat
+*.csv
+
+# optimized deep architecture parameters
+demo/*.npy
+
+# compiled source
+*.pyc
+*.pyo
+
+# backup files
+*.*~
