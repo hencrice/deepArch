@@ -3,7 +3,7 @@
 This module contains 2 classes inherited from ndarray, NnLayer and NeuNet, which are the building
 blocks of neural network. It also implements relating activation function such as sigmoid.
 '''
-from numpy import exp, ndarray, append, empty, ones, ravel, asmatrix, asarray
+from numpy import exp, ndarray, append, empty, ones, ravel, asmatrix, asarray, sum as npsum
 from scipy.optimize import fmin_cg
 
 def sigmoid(arr):
@@ -33,7 +33,7 @@ class NnLayer(ndarray):
         '''
         obj = append(empty(numOfUnit), biasUnitValue).view(cls)
         obj.__activFunc = activFunc
-        obj.__forwardWeight = asmatrix(empty((obj.size, numOfUnitNextLv)))
+        obj.forwardWeight = asmatrix(empty((obj.size, numOfUnitNextLv)))
         return obj
 
 #    __array_finalize__ is the only method that always sees new instances being created, it is the sensible place to fill in instance defaults for new object attributes, among other tasks.
@@ -57,7 +57,7 @@ class NnLayer(ndarray):
         NnLayer([0.1, 0.2, 0.3, 1.])
         '''
         self[:-1] = inputArr
-        return ravel(self.__activFunc(asarray(self) * self.__forwardWeight))
+        return ravel(self.__activFunc(asarray(self) * self.forwardWeight))
 
     def actvByAllInput(self, inputArr2D):
         '''
@@ -76,8 +76,8 @@ class NnLayer(ndarray):
         >>> layer
         NnLayer([0.23, 0.37, 0.28, 1.])
         '''
-        self.self2D = append(inputArr2D, ones((inputArr2D.shape[0], 1)) * self[-1], 1) # self2D[-1] == bias
-        return self.__activFunc(self.self2D * self.__forwardWeight)
+        self.self2D = append(inputArr2D, ones((inputArr2D.shape[0], 1)) * self[-1], 1)  # self2D[-1] == bias
+        return self.__activFunc(self.self2D * self.forwardWeight)
 
     def updateForwardWeight(self, newWeight):
         '''
@@ -86,26 +86,31 @@ class NnLayer(ndarray):
         :param newWeight: Can be either nested tuple/list or numpy matrix.
         '''
         newWeight = asmatrix(newWeight).T
-        assert self.__forwardWeight.shape == newWeight.shape, 'weight matrices dimension mismatch'
-        self.__forwardWeight = newWeight
+        assert self.forwardWeight.shape == newWeight.shape, 'weight matrices dimension mismatch'
+        self.forwardWeight = newWeight
 
 class FeedforwardNeuNet(ndarray):
     '''
     An instance of this class represents a single neural network. The instance itself is an 1D numpy array served as the output layer.
     '''
-    def __new__(cls, layersExOutputLy, weightDecayParam):
+    def __new__(cls, layersExOutputLy, weightDecayParam, sparsity, sparseParam):
         '''
         :param layersExOutputLy: A tuple that contains all layers except the output layer.
         :param weightDecayParam: Parameter that regulates network model complexity.
+        :param sparsity: Parameter that sets the target value of the sparsity of the neural network.
+        :param sparseParam: Parameter that regulates the sparsity.
 
         >>> layer0, layer1 = NnLayer(sigmoid, 3, 1, 2), NnLayer(sigmoid, 2, 1, 6)
         >>> layer0.updateForwardWeight(((0.11, 0.12, 0.13, 0.14), (0.15, 0.16, 0.17, 0.18)))
         >>> layer1.updateForwardWeight(((0.201, 0.202, 0.203), (0.204, 0.205, 0.206), (0.207, 0.208, 0.209), (0.21, 0.211, 0.212), (0.213, 0.214, 0.215), (0.216, 0.217, 0.218)))
-        >>> nn = NeuNet((layers0, layer1), 1, costFunc)
+        >>> nn = NeuNet((layers0, layer1), 1, 0.05, 1)
         '''
-        obj = empty(layersExOutputLy[-1]._NnLayer__forwardWeight.shape[1]).view(cls)
+        obj = empty(layersExOutputLy[-1].forwardWeight.shape[1]).view(cls)
         obj.layersExOutputLy = layersExOutputLy
+        obj.avgActvAllLyExOutputLyOverAllEx = None
         obj.__weightDecayParam = weightDecayParam
+        obj.__sparsity = sparsity
+        obj.__sparseParam = sparseParam
         return obj
 
     def train(self, inputArr2D, targets, costFunc, costFuncGrad, maxIter=100):
@@ -116,16 +121,13 @@ class FeedforwardNeuNet(ndarray):
         :param costFunc: callable *f(paramToOptimize, \*arg)* that will be used as cost function.
         :param costFuncGrad: callable *f'(paramToOptimize, \*arg)* that will be used to compute partial derivative of cost function over each parameter in paramToOptimize.
         '''
-        self.forwardPropogateAllInput(inputArr2D) # perform forward propagation to set self.outputs
-        flatWeights = asarray(self.layersExOutputLy[0]._NnLayer__forwardWeight)
+        self.forwardPropogateAllInput(inputArr2D)  # perform forward propagation to set self.outputs
+        avgEx = 1.0 / targets.shape[0]
+        flatWeights = asarray(self.layersExOutputLy[0].forwardWeight)
         for ly in self.layersExOutputLy[1:]:
-            flatWeights = append(flatWeights, asarray(ly._NnLayer__forwardWeight))
-        fmin_cg(costFunc, flatWeights, costFuncGrad, (inputArr2D, targets, self.__weightDecayParam, self), maxiter=maxIter, full_output=True) # fmin_cg calls grad before cost func
-#         startIndex = 0 # update all forward weights(not really sure this is necessary cause I already done this in cost func)
-#         for ly in self.layersExOutputLy:
-#             newWeight = transform1Dto2D(optForwardWeights[startIndex:startIndex + ly._NnLayer__forwardWeight.size], *ly._NnLayer__forwardWeight.shape)
-#             ly._NnLayer__forwardWeight = asmatrix(newWeight)
-#             startIndex += ly._NnLayer__forwardWeight.size
+            ly.avgActvArrAllEx = avgEx * npsum(ly.self2D[:, :-1], 0)
+            flatWeights = append(flatWeights, asarray(ly.forwardWeight))
+        fmin_cg(costFunc, flatWeights, costFuncGrad, (inputArr2D, targets, self.__weightDecayParam, self.__sparsity, self.__sparseParam, self), maxiter=maxIter, full_output=True)  # fmin_cg calls grad before cost func
 
     def forwardPropogateOneInput(self, inputArr):
         '''

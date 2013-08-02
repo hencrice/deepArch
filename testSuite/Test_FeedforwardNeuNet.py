@@ -1,14 +1,14 @@
 # -*- coding: UTF-8 -*-
 import sys
-sys.path.append('../')
+sys.path.append('../src')
 from unittest import TestCase, main
 from numpy import array, e as npe, matrix, sum as npsum, all as npall, asarray, ravel, append, select, identity, finfo
-from numpy.random import rand, randint
+from numpy.random import rand, randint, seed
 from numpy.testing import assert_array_almost_equal
 from scipy.io import loadmat
 from scipy.optimize import approx_fprime
 from FeedforwardNeuNet import sigmoid, NnLayer, FeedforwardNeuNet
-from CostFunc import courseraML_CostFunc, courseraML_CostFuncGrad
+from CostFunc import courseraML_CostFunc, courseraML_CostFuncGrad, sparse_CostFunc, sparse_CostFuncGrad
 
 _epsilon = finfo(float).eps ** 0.5
 def check_grad(func, grad, x0, *args):
@@ -67,8 +67,8 @@ class TestNeuNet(TestCase):
         layersExOutputLy[0].updateForwardWeight(forwardWeightAllLayers[0])
         layersExOutputLy[1].updateForwardWeight(forwardWeightAllLayers[1])
         self.inputs = loadmat(projectRootPath + 'X.mat')['X']
-        self.outputs = loadmat(projectRootPath + 'StanfordMLOutputs.mat')['actualOutput']
-        self.nn = FeedforwardNeuNet(layersExOutputLy, 1)
+        self.outputs = loadmat(projectRootPath + 'forwardPropOutputs.mat')['actualOutput']
+        self.nn = FeedforwardNeuNet(layersExOutputLy, 1, 0.05, 1)
 
     def test_forwardPropogateOneInput(self):
         self.nn.forwardPropogateOneInput(self.inputs[0])
@@ -82,9 +82,9 @@ class TestCourseraML_CostFunc(TestCase):
     def setUp(self):
         projectRootPath = '/'.join(__file__.replace('\t', '/t').replace('\\', '/').split('/')[:-2]) + '/testDataSet/'
         self.layersExOutputLy = (NnLayer(sigmoid, 400, 1, 25), NnLayer(sigmoid, 25, 1, 10))
-        self.nn = FeedforwardNeuNet(self.layersExOutputLy, 1)
+        self.nn = FeedforwardNeuNet(self.layersExOutputLy, 1, 0.05, 1)
         self.inputs = loadmat(projectRootPath + 'X.mat')['X']
-        self.forwardWeightAllLayers = append(loadmat(projectRootPath + 'Theta1.mat')['Theta1'].T, loadmat(projectRootPath + 'Theta2.mat')['Theta2'].T) # need to use transpose cause I use row vector rather than col vector as neurons
+        self.forwardWeightAllLayers = append(loadmat(projectRootPath + 'Theta1.mat')['Theta1'].T, loadmat(projectRootPath + 'Theta2.mat')['Theta2'].T)  # need to use transpose cause I use row vector rather than col vector as neurons
         y = loadmat(projectRootPath + 'y.mat')['y']
         identityArr = identity(10)
         self.targets = select([y == 1, y == 2, y == 3, y == 4, y == 5, y == 6, y == 7, y == 8, y == 9, y == 10], [identityArr[0], identityArr[1], identityArr[2], identityArr[3], identityArr[4], identityArr[5], identityArr[6], identityArr[7], identityArr[8], identityArr[9]])
@@ -100,8 +100,9 @@ class TestCourseraML_CostFunc(TestCase):
 
 class TestCourseraML_CostFuncGrad(TestCase):
     def setUp(self):
+        seed(3)
         self.layersExOutputLy = (NnLayer(sigmoid, 4, 1, 3), NnLayer(sigmoid, 3, 1, 10))
-        self.nn = FeedforwardNeuNet(self.layersExOutputLy, 0)
+        self.nn = FeedforwardNeuNet(self.layersExOutputLy, 0, 0.05, 1)
         self.inputs = rand(7, 4)
         identityArr = identity(10)
         y = randint(0, 10, 7)
@@ -115,6 +116,24 @@ class TestCourseraML_CostFuncGrad(TestCase):
             self.nn.forwardPropogateAllInput(self.inputs)
             # weightDecayParam must set to 0 in order to check my partial derivitives against numerical ones obtained by approx_fprime()
             check_grad(courseraML_CostFunc, courseraML_CostFuncGrad, append(weights1, weights2), self.inputs, self.targets, 0, self.nn)
+
+class TestSparse_CostFuncGrad(TestCase):
+    def setUp(self):
+        self.layersExOutputLy = (NnLayer(sigmoid, 4, 1, 3), NnLayer(sigmoid, 3, 1, 10))
+        self.nn = FeedforwardNeuNet(self.layersExOutputLy, 0, 0.05, 1)
+        self.inputs = rand(7, 4)
+        identityArr = identity(10)
+        y = randint(0, 10, 7)
+        self.targets = array([identityArr[t] for t in y])
+
+    def test_sparse_CostFuncGradMultiOutputNoWeitDecayNoSparse(self):
+        for x in xrange(3):
+            weights1, weights2 = rand(3, 5), rand(10, 4)
+            self.nn.layersExOutputLy[0].updateForwardWeight(weights1)
+            self.nn.layersExOutputLy[1].updateForwardWeight(weights2)
+            self.nn.forwardPropogateAllInput(self.inputs)
+            # weightDecayParam must set to 0 in order to check my partial derivitives against numerical ones obtained by approx_fprime()
+            check_grad(sparse_CostFunc, sparse_CostFuncGrad, append(weights1, weights2), self.inputs, self.targets, 0, 0.01, 0, self.nn)
 
 if __name__ == "__main__":
     main()
