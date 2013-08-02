@@ -6,7 +6,7 @@ Various types of deep architectures.
 
 Feedforward Neural Network Structure
 ------------------------------------
-.. image:: https://lh3.googleusercontent.com/-jxMPh0i6q5M/UeZFRAWHtrI/AAAAAAAAGpM/Y888-Vz2ri8/w987-h549-no/FeedforwardNNStruct.jpg
+.. image:: https://lh4.googleusercontent.com/-zt-5emltAGw/Ufp9V81KYlI/AAAAAAAAHAE/BUtwvYS9wHU/w833-h467-no/FeedforwardNNStruct.png
 
 .. |addBias| image:: https://lh3.googleusercontent.com/-ZoJswguVmxQ/UeZHe6Y8zeI/AAAAAAAAGpk/RDza9WEoHzk/w48-h44-no/addBias.png
 	:width: 40px
