@@ -21,11 +21,15 @@ def courseraML_CostFunc(weightAllLayers, *args):
 
         **weightDecayParam**: For model complexity regulation.
 
+        **sparsity**: Ignored.
+
+        **sparseParam**: Ignored.
+
         **nn**: An instance of class FeedforwardNeuNet.
 
     :returns: A scalar representing the cost of current input using weightAllLayers.
     '''
-    inputArr2D, targets, weightDecayParam, nn = args
+    inputArr2D, targets, weightDecayParam, _, _, nn = args
     startIndex, weightsExcBias = 0, 0
     for ly in nn.layersExOutputLy:  # update all forward weights
         newWeight = reshape(weightAllLayers[startIndex:startIndex + ly.forwardWeight.size], ly.forwardWeight.shape)
@@ -53,11 +57,15 @@ def courseraML_CostFuncGrad(weightAllLayers, *args):
 
         **weightDecayParam**: For model complexity regulation.
 
+        **sparsity**: Ignored.
+
+        **sparseParam**: Ignored.
+
         **nn**: An instance of class FeedforwardNeuNet.
 
     :returns: A flatten array represents the partial derivatives of the :func:`courseraML_CostFunc` over each weight in weightAllLayers.
     '''
-    _, targets, weightDecayParam, nn = args  # no need to use weightAllLayers cause ly.forwardWeight will be updated in courseraML_CostFunc(), which will be used in FeedforwardNeuNet.train() together with courseraML_CostFuncGrad()
+    _, targets, weightDecayParam, _, _, nn = args  # no need to use weightAllLayers cause ly.forwardWeight will be updated in courseraML_CostFunc(), which will be used in FeedforwardNeuNet.train() together with courseraML_CostFuncGrad()
     costGradAllLyOutToIn = []  # each is a triangle^{l}(a matrix) on Courera ML L9, p8
     numOfExamples = targets.shape[0] * 1.0
     errDeltaMatNxtLv = (nn.outputs - targets)
