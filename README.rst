@@ -6,7 +6,7 @@ This project is created purely for my educational purpose of learning deep archi
 Documentation
 =============
 
-Please go to http://hencrice.bitbucket.org/deepArch/.
+Please go to https://github.com/hencrice/deepArch.
 
 Data sets/optimized architectural parameters
 ============================================
